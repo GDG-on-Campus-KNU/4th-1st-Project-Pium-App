@@ -1,10 +1,8 @@
 package com.example.knumap
 
-import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -15,7 +13,7 @@ class PhotoAdapter(private val photoList: MutableList<Photo>) :
     inner class PhotoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val photoImageView: ImageView = view.findViewById(R.id.photoImageView)
         private val usernameTextView: TextView = view.findViewById(R.id.usernameTextView)
-        private val likeButton: ImageButton = view.findViewById(R.id.likeButton)
+        private val heartImageView: ImageView = view.findViewById(R.id.heartImageView)
         private val likeCountTextView: TextView = view.findViewById(R.id.likeCountTextView)
 
         fun bind(photo: Photo) {
@@ -23,11 +21,22 @@ class PhotoAdapter(private val photoList: MutableList<Photo>) :
             usernameTextView.text = photo.username
             likeCountTextView.text = photo.likes.toString()
 
-            // 좋아요 버튼 클릭 시 증가
-            likeButton.setOnClickListener {
-                val newLikes = photo.likes + 1
-                photoList[adapterPosition] = photo.copy(likes = newLikes)
+
+            // 하트 이미지 설정 (상태에 따라)
+            heartImageView.setImageResource(
+                if (photo.isLiked) R.drawable.ic_heart_filled else R.drawable.ic_heart_border
+            )
+
+            // 하트 클릭 시
+            heartImageView.setOnClickListener {
+                photo.isLiked = !photo.isLiked
+                if (photo.isLiked) {
+                    photo.likes += 1
+                } else {
+                    photo.likes -= 1
+                }
                 notifyItemChanged(adapterPosition)
+
             }
         }
     }
@@ -45,7 +54,7 @@ class PhotoAdapter(private val photoList: MutableList<Photo>) :
     override fun getItemCount(): Int = photoList.size
 
     fun addPhoto(photo: Photo) {
-        photoList.add(0, photo) // 최신 사진이 맨 위에 오도록
+        photoList.add(0, photo)
         notifyItemInserted(0)
     }
 
@@ -58,6 +67,5 @@ class PhotoAdapter(private val photoList: MutableList<Photo>) :
         photoList.sortByDescending { it.likes }
         notifyDataSetChanged()
     }
-
 }
 

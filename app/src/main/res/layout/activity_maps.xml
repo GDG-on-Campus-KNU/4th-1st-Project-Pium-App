@@ -29,6 +29,7 @@
         android:layout_alignParentBottom="true"
         android:background="@android:color/transparent"
         android:elevation="8dp"
+        android:fillViewport="true"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -93,8 +94,11 @@
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/photoRecyclerView"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="300dp"
                 android:layout_marginTop="16dp"
+                android:nestedScrollingEnabled="true"
+                android:overScrollMode="never"
+                tools:listitem="@layout/item_photo"
                 app:layout_constraintTop_toBottomOf="@+id/filterContainer"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"/>

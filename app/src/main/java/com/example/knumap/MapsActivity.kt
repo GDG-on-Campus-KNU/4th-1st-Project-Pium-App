@@ -43,6 +43,7 @@ import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.widget.NestedScrollView
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
@@ -60,6 +61,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -193,11 +195,34 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         // RecyclerView 설정
         photoAdapter = PhotoAdapter(mutableListOf())
         //photoAdapter = PhotoAdapter(photoList)
-        findViewById<RecyclerView>(R.id.photoRecyclerView).apply {
-            layoutManager = LinearLayoutManager(this@MapsActivity, LinearLayoutManager.HORIZONTAL, false)
+        val photoRecyclerView = findViewById<RecyclerView>(R.id.photoRecyclerView)
+
+        photoRecyclerView.apply {
+            layoutManager = GridLayoutManager(this@MapsActivity, 3) // ✅ 3열 그리드로 설정
             adapter = photoAdapter
+            isNestedScrollingEnabled = true // ✅ 내부 스크롤 활성화
         }
 
+        // ✅ 바텀시트가 RecyclerView 스크롤 터치를 가로채지 않도록 설정
+        photoRecyclerView.setOnTouchListener { v, event ->
+            // 스크롤 시 바텀시트가 터치 이벤트를 가로채지 않게 함
+            v.parent.requestDisallowInterceptTouchEvent(true)
+            false
+        }
+
+        photoRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+
+                val isAtTop = !recyclerView.canScrollVertically(-1) // 맨 위 여부
+                val isAtBottom = !recyclerView.canScrollVertically(1) // 맨 아래 여부
+
+                if (newState == RecyclerView.SCROLL_STATE_IDLE && isAtBottom) {
+                    // ✅ 스크롤이 멈췄고, 맨 아래라면 바텀시트에 이벤트 넘겨줌
+                    recyclerView.parent.requestDisallowInterceptTouchEvent(false)
+                }
+            }
+        })
 
 
 
