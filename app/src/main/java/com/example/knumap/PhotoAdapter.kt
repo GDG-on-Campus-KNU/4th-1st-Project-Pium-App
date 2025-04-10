@@ -6,8 +6,12 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.example.knumap.model.Post
 
-class PhotoAdapter(private val photoList: MutableList<Photo>) :
+class PhotoAdapter(
+    private val photoList: MutableList<Photo>,
+    private val onItemClick: (Post) -> Unit
+    ) :
     RecyclerView.Adapter<PhotoAdapter.PhotoViewHolder>() {
 
     inner class PhotoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -17,30 +21,33 @@ class PhotoAdapter(private val photoList: MutableList<Photo>) :
         private val likeCountTextView: TextView = view.findViewById(R.id.likeCountTextView)
 
         fun bind(photo: Photo) {
-            photoImageView.setImageURI(photo.uri)
-            usernameTextView.text = photo.username
-            likeCountTextView.text = photo.likes.toString()
+            val post = photo.post
+            photoImageView.setImageURI(post.imageUri)
+            usernameTextView.text = "익명"
+            likeCountTextView.text = post.likes.toString()
 
 
             // 하트 이미지 설정 (상태에 따라)
             heartImageView.setImageResource(
-                if (photo.isLiked) R.drawable.ic_heart_filled else R.drawable.ic_heart_border
+                if (post.isLiked) R.drawable.ic_heart_filled else R.drawable.ic_heart_border
             )
 
             // 하트 클릭 시
             heartImageView.setOnClickListener {
                 photo.isLiked = !photo.isLiked
-                if (photo.isLiked) {
-                    photo.likes += 1
-                } else {
-                    photo.likes -= 1
-                }
+                photo.likes += if (photo.isLiked) 1 else -1
                 notifyItemChanged(adapterPosition)
 
             }
+            // 🔥 [추가] 사진 클릭 시 콜백 실행
+            photoImageView.setOnClickListener {
+                onItemClick(post) // 🔥 클릭된 Photo 객체 전달
+            }
         }
     }
-
+    fun getPhotoList(): MutableList<Photo> {
+        return photoList
+    }
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PhotoViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_photo, parent, false)
@@ -53,18 +60,18 @@ class PhotoAdapter(private val photoList: MutableList<Photo>) :
 
     override fun getItemCount(): Int = photoList.size
 
-    fun addPhoto(photo: Photo) {
-        photoList.add(0, photo)
+    fun addPhoto(post: Post) {
+        photoList.add(0, Photo(post)) // ✅ 내부에서 감싸서 Photo 객체로 변환
         notifyItemInserted(0)
     }
 
     fun sortByLatest() {
-        photoList.sortByDescending { it.timestamp }
+        photoList.sortByDescending { it.post.timestamp }
         notifyDataSetChanged()
     }
 
     fun sortByPopular() {
-        photoList.sortByDescending { it.likes }
+        photoList.sortByDescending { it.post.likes }
         notifyDataSetChanged()
     }
 }

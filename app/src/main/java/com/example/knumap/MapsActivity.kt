@@ -48,6 +48,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.knumap.model.Post
 import com.example.knumap.network.RetrofitClient
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -65,6 +66,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+
 import java.security.MessageDigest
 
 
@@ -92,9 +94,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var photoAdapter: PhotoAdapter
     private val photoList = mutableListOf<Uri>()
     private val REQUEST_IMAGE_CAPTURE = 1
+    private val REQUEST_WRITE_POST = 2
+    private val REQUEST_VIEW_POST = 3
     private lateinit var photoUri: Uri
     private lateinit var photoFile: File
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<ConstraintLayout>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_maps)
@@ -230,7 +235,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
 
         // RecyclerView 설정
-        photoAdapter = PhotoAdapter(mutableListOf())
+        photoAdapter = PhotoAdapter(mutableListOf()) { post ->
+            val intent = Intent(this, PostDetailActivity::class.java).apply {
+                putExtra("newPost", post)
+            }
+            startActivityForResult(intent, REQUEST_VIEW_POST)
+        }
         //photoAdapter = PhotoAdapter(photoList)
         val photoRecyclerView = findViewById<RecyclerView>(R.id.photoRecyclerView)
 
@@ -624,30 +634,65 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-
+        Log.d("DEBUG_POST", "넘어괸왔니?: ${requestCode}, ${resultCode}")
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-            val bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
-            val savedPath = saveImageToInternalStorage(bitmap)  // 내부 저장소에 저장
 
-            if (savedPath.isNotEmpty()) {
-                val savedUri = Uri.fromFile(File(savedPath))
+            // 🔥 여기서 PostWriteActivity로 전환
+            val photoUri = FileProvider.getUriForFile(
+                this,
+                "com.example.knumap.fileprovider",
+                photoFile
+            )
 
-                // ✅ 직접 이미지뷰에 표시하지 않고 PhotoAdapter에만 추가
-                val newPhoto = Photo(
-                    uri = savedUri,
-                    username = "user_${(1..100).random()}",
-                    likes = (1..1000).random(),
-                    timestamp = System.currentTimeMillis()
-                )
+            val intent = Intent(this, PostWriteActivity::class.java).apply {
+                putExtra("imageUri", photoUri.toString()) // string으로 변환해 전달
+            }
+            startActivityForResult(intent, REQUEST_WRITE_POST)
 
-                // 🚀 RecyclerView에만 추가 (ImageView에 setImageURI() 하지 않음)
-                photoAdapter.addPhoto(newPhoto)
 
-                // 🚀 지도 마커 추가
-                addMarkerOnMap(savedUri)
+        }
+        if (requestCode == REQUEST_WRITE_POST && resultCode == RESULT_OK) {
+            val newPost = data?.getParcelableExtra<Post>("newPost")
+            if (newPost != null) {
+                photoAdapter.addPhoto(newPost) // 🔥 RecyclerView에 추가
+                addMarkerOnMap(newPost.imageUri) // 🔥 지도에 마커 추가
             }
         }
+        if (requestCode == REQUEST_VIEW_POST && resultCode == RESULT_OK) {
+            val updatedPost = data?.getParcelableExtra<Post>("updatedPost")
+            updatedPost?.let {
+                Log.d("DEBUG_POST", "업데이트된 post 받음: $it")
+                updatePhotoLikeState(it)
+            }
+        }
+
     }
+    private fun updatePhotoLikeState(updatedPost: Post) {
+        Log.d("DEBUG_POST", "업데이트 요청 받은 post: ${updatedPost.imageUri}, likes=${updatedPost.likes}, isLiked=${updatedPost.isLiked}")
+
+        val photoList = photoAdapter.getPhotoList() // photoList 접근 가능한 방식이어야 함
+        Log.d("DEBUG_POST", "현재 photoList 크기: ${photoList.size}")
+
+        val index = photoList.indexOfFirst {
+            Log.d("DEBUG_POST", "검사 중: ${it.uri} == ${updatedPost.imageUri}")
+            it.uri == updatedPost.imageUri
+        }
+
+        if (index != -1) {
+            val photo = photoList[index]
+            Log.d("DEBUG_POST", "일치하는 사진 찾음. 기존 좋아요: ${photo.likes}, isLiked=${photo.isLiked}")
+
+            photo.likes = updatedPost.likes
+            photo.isLiked = updatedPost.isLiked
+            photoAdapter.notifyItemChanged(index)
+
+            Log.d("DEBUG_POST", "업데이트 완료 at index $index: 새 좋아요 ${photo.likes}, isLiked=${photo.isLiked}")
+        } else {
+            Log.w("DEBUG_POST", "⚠️ Photo 리스트에서 일치하는 게시물 못 찾음 - ${updatedPost.imageUri}")
+        }
+    }
+
+
     private fun addMarkerOnMap(photoUri: Uri) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             // ✅ 위치 권한이 있을 경우 현재 위치 가져오기

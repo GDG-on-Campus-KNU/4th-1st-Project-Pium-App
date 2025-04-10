@@ -74,6 +74,14 @@
                     android:path="/callback" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".PostWriteActivity"
+            android:launchMode="singleTop">
+        </activity>
+        <activity
+            android:name=".PostDetailActivity"
+            android:launchMode="singleTop">
+        </activity>
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
