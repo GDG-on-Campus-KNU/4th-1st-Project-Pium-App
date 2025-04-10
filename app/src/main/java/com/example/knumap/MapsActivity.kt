@@ -20,6 +20,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 import android.Manifest
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
 import android.graphics.Bitmap
@@ -43,9 +44,11 @@ import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.widget.NestedScrollView
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.knumap.network.RetrofitClient
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -58,9 +61,11 @@ import com.google.android.gms.maps.model.PolygonOptions
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.Priority
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.security.MessageDigest
 
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -81,7 +86,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var zoomOutButton: ImageButton
     private var initialY = 0f
     private var touchStartY = 0f
-    private val expandedHeight = 1200f // 확장된 높이
+    private val expandedHeight = 1500f // 확장된 높이
     private val collapsedHeight = 300f // 접힌 높이
     private var isDragging = false
     private lateinit var photoAdapter: PhotoAdapter
@@ -93,6 +98,35 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_maps)
+        // 1. SharedPreferences에서 access_token 꺼내기
+        val prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
+        val jwtAccessToken = prefs.getString("access_token", null)
+
+        if (jwtAccessToken.isNullOrBlank()) {
+            Toast.makeText(this, "JWT 토큰 없음", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 2. 서버에 테스트 요청 보내기
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.authService.getTestMessage("Bearer $jwtAccessToken")
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val message = response.body()?.data?.message.orEmpty()
+                    Toast.makeText(this@MapsActivity, "서버 응답: $message", Toast.LENGTH_LONG).show()
+                    Log.d("TEST", "서버 메시지: $message")
+                } else {
+                    Toast.makeText(this@MapsActivity, "응답 실패: ${response.code()}", Toast.LENGTH_SHORT).show()
+                    Log.e("TEST", "응답 실패: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MapsActivity, "오류: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("TEST", "에러: ${e.message}")
+            }
+        }
+
+
+
 
         // SupportMapFragment를 동적으로 추가
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map_container) as? SupportMapFragment
@@ -164,11 +198,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 MotionEvent.ACTION_UP -> {
                     isDragging = false
+
                     val targetHeight = if (bottomSheet.height > (collapsedHeight + expandedHeight) / 2) {
                         expandedHeight
                     } else {
                         collapsedHeight
                     }
+
+                    
                     // 🔥 ValueAnimator 적용해서 부드럽게 이동
                     val animator = ValueAnimator.ofInt(bottomSheet.height, targetHeight.toInt())
                     animator.addUpdateListener { animation ->
@@ -203,26 +240,46 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             isNestedScrollingEnabled = true // ✅ 내부 스크롤 활성화
         }
 
-        // ✅ 바텀시트가 RecyclerView 스크롤 터치를 가로채지 않도록 설정
+
+        var recyclerStartY = 0f
         photoRecyclerView.setOnTouchListener { v, event ->
-            // 스크롤 시 바텀시트가 터치 이벤트를 가로채지 않게 함
             v.parent.requestDisallowInterceptTouchEvent(true)
             false
         }
+        /*
+        // ✅ RecyclerView 터치 필터: 미세 스크롤 방지
+        photoRecyclerView.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    recyclerStartY = event.rawY
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val delta = Math.abs(event.rawY - recyclerStartY)
+                    if (delta < 20) {
+                        return@setOnTouchListener true
+                    }
+                    v.parent.requestDisallowInterceptTouchEvent(true)
+                }
+                MotionEvent.ACTION_UP -> {
+                    // ✅ 터치 해제 시 부모에게 이벤트를 넘기지 않음 (튀는 현상 방지)
+                    v.parent.requestDisallowInterceptTouchEvent(true)
+                }
+            }
+            false
+        }
 
+         */
+        /*
         photoRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
-
-                val isAtTop = !recyclerView.canScrollVertically(-1) // 맨 위 여부
-                val isAtBottom = !recyclerView.canScrollVertically(1) // 맨 아래 여부
-
-                if (newState == RecyclerView.SCROLL_STATE_IDLE && isAtBottom) {
-                    // ✅ 스크롤이 멈췄고, 맨 아래라면 바텀시트에 이벤트 넘겨줌
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     recyclerView.parent.requestDisallowInterceptTouchEvent(false)
                 }
             }
         })
+        */
+
 
 
 
