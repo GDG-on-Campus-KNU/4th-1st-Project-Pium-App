@@ -912,6 +912,32 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         enableMyLocation()
         //3. 건물 추가하기
         addBuildingOverlays()
+        // ✅ 🔍 카메라 줌 변경 감지 → 마커 크기 갱신
+        // 🔍 카메라 이동 끝났을 때 마커 크기 갱신
+        /*
+        mMap.setOnCameraIdleListener {
+            val zoom = mMap.cameraPosition.zoom
+            val currentLatLng = latestLocation?.let { LatLng(it.latitude, it.longitude) }
+            updateNearbyMarkers(currentLatLng, zoom)
+        }
+        */
+
+
+        // 🖱 마커 클릭 시 상세 페이지 이동
+        mMap.setOnMarkerClickListener { marker ->
+            val postId = marker.title?.toLongOrNull()
+            if (postId != null) {
+                Log.d("DEBUG_MARKER", "🔍 클릭된 마커의 postId: $postId")
+                val intent = Intent(this, PostDetailActivity::class.java).apply {
+                    putExtra("postId", postId)
+                }
+                startActivity(intent)
+                true
+            } else {
+                false
+            }
+        }
+
 
     }
     private fun addBuildingOverlays() {
@@ -950,6 +976,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 Log.d("MAP_DEBUG", "해당 위치에 건물 정보가 없음")
             }
         }
+
 
 
     }
@@ -1011,8 +1038,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
                     updateOverlayTransparency(currentLatLng) // 위치 업데이트 시 건물과 겹치는지 확인
                     updateUserMarker(currentLatLng)
-                    updateLocationBasedInfo(location)
+                    //updateLocationBasedInfo(location)
                     updateNearbyMarkers(currentLatLng)
+
 
                 }
             }
@@ -1512,8 +1540,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         currentPetalMarkers.clear()
 
+        val visibleRegion = mMap.projection.visibleRegion.latLngBounds
         for (post in allPostList) {
             val postLatLng = LatLng(post.latitude, post.longitude)
+            // ✅ 위도/경도 로그 출력
+            Log.d("DEBUG_MARKER", "🛰 postId: ${post.postId} → 위도: ${post.latitude}, 경도: ${post.longitude}")
             val distance = FloatArray(1)
             Location.distanceBetween(
                 currentLatLng.latitude, currentLatLng.longitude,
@@ -1523,13 +1554,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
             if (distance[0] <= 1000) {
                 // 📍 게시글 위치 마커 (빨간색)
-                val baseMarker = mMap.addMarker(
-                    MarkerOptions()
-                        .position(postLatLng)
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-                        .title("게시글 위치")
-                )
-                baseMarker?.let { currentPetalMarkers.add(it) }
+                Log.d("DEBUG_MARKER", "📍 마커 추가 대상 - postId: ${post.postId}, 거리: ${distance[0]}m")
+
+
 
                 // 📌 각도 계산 (위도/경도 비율 보정 포함)
                 val lat1 = Math.toRadians(postLatLng.latitude)
@@ -1543,19 +1570,52 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 val angleRadians = atan2(deltaLng, deltaLat)
                 val angleDegrees = Math.toDegrees(angleRadians) - 180.0
 
+                val bitmap = BitmapFactory.decodeResource(resources, R.drawable.petal)
+                val smallMarker = Bitmap.createScaledBitmap(bitmap, 50, 50, false)
                 // 📘 파란 마커 (나를 바라보는 방향)
-                val rotatedMarker = mMap.addMarker(
+                val marker = mMap.addMarker(
                     MarkerOptions()
                         .position(postLatLng)
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
-                        .rotation(angleDegrees.toFloat())  // 회전 적용
-                        .flat(true) // 카메라 회전에 따라 회전 X (지도 기준)
-                        .anchor(0.5f, 1.0f)
+                        .icon(BitmapDescriptorFactory.fromBitmap(smallMarker))
+                        .rotation(angleDegrees.toFloat())
+                        .flat(true)
+                        .anchor(0.5f, 0.8f)
+                        .title(post.postId.toString())
+                        .zIndex(post.postId.toFloat()) // 🔽 겹침 방지용
                 )
-                rotatedMarker?.let { currentPetalMarkers.add(it) }
+                marker?.let {
+                    currentPetalMarkers.add(it)
+                    Log.d("DEBUG_MARKER", "🌸 꽃잎 마커 추가됨 - postId: ${post.postId}, 회전각: ${angleDegrees.toFloat()}°")
+
+                    // 🔍 마커가 현재 화면 내에 보이는지도 확인
+                    val isVisible = visibleRegion.contains(it.position)
+                    Log.d("DEBUG_VISIBILITY", "🧭 마커 postId: ${post.postId} → 화면 내 보임 여부: $isVisible")
+                }
+                // ✅ 최종 마커 수 확인
+                Log.d("DEBUG_MARKER", "🔢 최종 추가된 마커 수: ${currentPetalMarkers.size}")
             }
         }
     }
+    /*
+    // ✅ 3. 비트맵 리사이즈 함수 추가
+    private fun resizeMarkerBitmap(resourceId: Int, scale: Float): Bitmap {
+        val original = BitmapFactory.decodeResource(resources, resourceId)
+        val width = (original.width * scale).toInt()
+        val height = (original.height * scale).toInt()
+        return Bitmap.createScaledBitmap(original, width, height, false)
+    }
+    */
+    /*
+    private fun resizeMarkerBitmap(resourceId: Int, scale: Float): Bitmap {
+        val original = BitmapFactory.decodeResource(resources, resourceId)
+        val maxDimension = 200  // 최대 크기 제한
+        val width = (original.width * scale).coerceAtMost(maxDimension.toFloat()).toInt()
+        val height = (original.height * scale).coerceAtMost(maxDimension.toFloat()).toInt()
+        return Bitmap.createScaledBitmap(original, width, height, false)
+    }
+    */
+
+
 
     private fun updatePhotoLikeState(updatedPost: Post) {
         Log.d("DEBUG_POST", "업데이트 요청 받은 post: ${updatedPost.imageUri}, likes=${updatedPost.likes}, isLiked=${updatedPost.isLiked}")
