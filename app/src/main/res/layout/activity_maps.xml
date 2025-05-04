@@ -5,7 +5,42 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MapsActivity">
+    <!-- 🔍 검색창: 화면 상단 + 지도 위로 떠 있게 elevation 적용 -->
+    <LinearLayout
+        android:id="@+id/searchOverlay"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_margin="16dp"
+        android:padding="8dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/rounded_search_background"
+        android:elevation="12dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
+        <EditText
+            android:id="@+id/searchEditText"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:hint="장소를 검색하세요"
+            android:background="@android:color/transparent"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:textColorHint="#88000000"
+            android:textColor="#FF000000" />
+
+        <ImageButton
+            android:id="@+id/searchButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_search"
+            android:contentDescription="검색"/>
+    </LinearLayout>
     <FrameLayout
         android:id="@+id/map_container"
         android:layout_width="match_parent"
@@ -20,7 +55,7 @@
             android:name="com.google.android.gms.maps.SupportMapFragment"
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
-</FrameLayout>
+    </FrameLayout>
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/bottomSheetContainer"
@@ -48,72 +83,136 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"/>
 
-            <TextView
-                android:id="@+id/building_info"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="빌딩위치"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/cameraButton" />
-
-            <!-- 🔥 필터 버튼 추가 위치 -->
+            <!-- ✅ 접힘 상태 전용 UI -->
             <LinearLayout
-                android:id="@+id/filterContainer"
+                android:id="@+id/collapsedLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="left"
-                android:padding="8dp"
-                app:layout_constraintTop_toBottomOf="@id/building_info"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="16dp"
+                android:background="@android:color/transparent"
+                android:visibility="visible"
+                app:layout_constraintTop_toBottomOf="@id/dragHandle"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
 
                 <ImageButton
-                    android:id="@+id/sortLatestButton"
+                    android:id="@+id/cameraButtonCollapsed"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="최신"
+                    android:src="@drawable/ic_camera_collapsed"
                     android:background="@android:color/white"
-                    android:src="@drawable/ic_latest"
-                    android:padding="0dp"
-                    android:layout_marginEnd="8dp"/>
-
-                <ImageButton
-                    android:id="@+id/sortPopularButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@android:color/white"
-                    android:text="인기있는"
-                    android:src="@drawable/ic_favorite"
-                    android:padding="0dp"/>
+                    android:contentDescription="촬영"
+                    android:scaleType="centerInside"/>
             </LinearLayout>
-            <!-- 🔥 필터 버튼 추가 끝 -->
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/photoRecyclerView"
+            <!-- ✅ 펼침 상태 전용 UI -->
+            <LinearLayout
+                android:id="@+id/expandedLayout"
                 android:layout_width="match_parent"
-                android:layout_height="300dp"
-                android:layout_marginTop="16dp"
-                android:nestedScrollingEnabled="false"
-                android:overScrollMode="never"
-                tools:listitem="@layout/item_photo"
-                app:layout_constraintTop_toBottomOf="@+id/filterContainer"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"/>
-
-            <ImageButton
-                android:id="@+id/cameraButton"
-                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:src="@drawable/ic_camera"
+                android:orientation="vertical"
+                android:padding="16dp"
                 android:background="@android:color/white"
-                android:contentDescription="camera_button_description"
-                app:layout_constraintTop_toBottomOf="@+id/dragHandle"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/dragHandle"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"/>
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp">
+
+                    <!-- 텍스트 묶음 -->
+                    <LinearLayout
+                        android:id="@+id/textGroup"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_alignParentStart="true">
+
+                        <TextView
+                            android:id="@+id/memoryTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="이 장소에서의 추억들"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/locationName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="IT대학 공대 1호관"
+                            android:textSize="14sp"
+                            android:textColor="#888888"
+                            android:textStyle="bold"
+                            android:layout_marginTop="4dp" />
+
+
+                    </LinearLayout>
+
+                    <!-- 빨간 카메라 버튼: 텍스트 오른쪽에 위치 -->
+                    <ImageButton
+                        android:id="@+id/cameraButtonExpanded"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_alignParentTop="true"
+                        android:layout_alignParentEnd="true"
+                        android:layout_alignTop="@id/textGroup"
+                        android:layout_marginEnd="4dp"
+                        android:background="@android:color/white"
+                        android:src="@drawable/ic_camera_expanded"
+                        android:contentDescription="촬영" />
+                </RelativeLayout>
+                <TextView
+                    android:id="@+id/pictureNumber"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="1,234개의 사진"
+                    android:textSize="12sp"
+                    android:textColor="#888888"/>
+
+                <LinearLayout
+                    android:id="@+id/filterContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp">
+
+                    <ImageButton
+                        android:id="@+id/sortLatestButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@android:color/white"
+                        android:src="@drawable/ic_latest"
+                        android:padding="0dp"
+                        android:layout_marginEnd="8dp"/>
+
+                    <ImageButton
+                        android:id="@+id/sortPopularButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@android:color/white"
+                        android:src="@drawable/ic_favorite"
+                        android:padding="0dp"/>
+                </LinearLayout>
+
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/photoRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    android:layout_marginTop="16dp"
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never"
+                    tools:listitem="@layout/item_photo"
+                    app:layout_constraintTop_toBottomOf="@+id/filterContainer"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"/>
+            </LinearLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>

@@ -1,5 +1,6 @@
 package com.example.knumap
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -7,6 +8,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.knumap.model.Post
+import com.bumptech.glide.Glide
 
 class PhotoAdapter(
     private val photoList: MutableList<Photo>,
@@ -22,8 +24,17 @@ class PhotoAdapter(
 
         fun bind(photo: Photo) {
             val post = photo.post
-            photoImageView.setImageURI(post.imageUri)
-            usernameTextView.text = "익명"
+            // ✅ 로그 추가
+            Log.d("PhotoAdapter", "바인딩 중: username=${post.username}, uri=${post.imageUri}, likes=${post.likes}")
+            // ✅ Glide를 사용한 이미지 로딩
+            Glide.with(itemView.context)
+                .load(post.imageUri.toString())  // 서버 URL도 URI로 파싱되어 있으므로 .toString() 필수
+                .placeholder(R.drawable.placeholder)  // 로딩 중 이미지
+                .error(R.drawable.error)  // 에러 이미지
+                .into(photoImageView)
+
+            //photoImageView.setImageURI(post.imageUri)
+            usernameTextView.text = photo.username
             likeCountTextView.text = post.likes.toString()
 
 
@@ -41,6 +52,7 @@ class PhotoAdapter(
             }
             // 🔥 [추가] 사진 클릭 시 콜백 실행
             photoImageView.setOnClickListener {
+                Log.d("DEBUG_CLICK", "✅ 아이템 클릭됨 - postId: ${post.postId}")
                 onItemClick(post) // 🔥 클릭된 Photo 객체 전달
             }
         }
@@ -72,6 +84,11 @@ class PhotoAdapter(
 
     fun sortByPopular() {
         photoList.sortByDescending { it.post.likes }
+        notifyDataSetChanged()
+    }
+    fun updatePhotoList(newList: List<Photo>) {
+        photoList.clear()
+        photoList.addAll(newList)
         notifyDataSetChanged()
     }
 }

@@ -66,15 +66,33 @@ class LoginActivity : AppCompatActivity() {
                 try {
                     val request = KakaoLoginRequest(kakaoAccessToken)
                     val response = RetrofitClient.authService.kakaoLogin(request)
+                    if (response.isSuccessful) {
+                        Log.d("LOGIN_DEBUG", "✅ HTTP 응답 성공 (2xx)")
 
+                        // 2. body().success 여부 로그
+                        val successField = response.body()?.success
+                        Log.d("LOGIN_DEBUG", "response.body()?.success == $successField")
+
+                        if (successField == true) {
+                            Log.d("LOGIN_DEBUG", "🎉 최종 조건 만족 → 로그인 성공 처리됨")
+                            // 여기서 정상 처리 로직 실행
+                        } else {
+                            Log.e("LOGIN_DEBUG", "❗ 응답 바디 내부 success == false 또는 null")
+                        }
+
+                    } else {
+                        Log.e("LOGIN_DEBUG", "❌ HTTP 응답 실패 → response.isSuccessful == false")
+                        Log.e("LOGIN_DEBUG", "실패 이유: ${response.errorBody()?.string()}")
+                    }
                     if (response.isSuccessful && response.body()?.success == true) {
                         val loginData = response.body()?.data
                         val jwtAccess = loginData?.jwtAccessToken.orEmpty()
                         val jwtRefresh = loginData?.refreshToken.orEmpty()
+                        val accountId = loginData?.accountId ?: -1L
                         Log.d("JWT", "access_token: $jwtAccess")
                         Log.d("JWT", "refresh_token: $jwtRefresh")
                         Toast.makeText(this@LoginActivity, "로그인 성공!", Toast.LENGTH_SHORT).show()
-                        saveJwtToken(jwtAccess, jwtRefresh) // ✅ 저장
+                        saveJwtToken(jwtAccess, jwtRefresh,accountId) // ✅ 저장
                         // ✅ MapsActivity로 이동
                         val intent = Intent(this@LoginActivity, MapsActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -125,11 +143,12 @@ class LoginActivity : AppCompatActivity() {
             null
         }
     }
-    private fun saveJwtToken(accessToken: String, refreshToken: String) {
+    private fun saveJwtToken(accessToken: String, refreshToken: String, accountId: Long)  {
         val prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
         prefs.edit().apply {
             putString("access_token", accessToken)
             putString("refresh_token", refreshToken)
+            putLong("account_id", accountId)
             apply()
         }
     }

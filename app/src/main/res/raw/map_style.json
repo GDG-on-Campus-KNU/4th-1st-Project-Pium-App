@@ -3,14 +3,17 @@
     "featureType": "all",
     "elementType": "geometry",
     "stylers": [
-      { "visibility": "off" }
+      {
+        "color": "#ffffff" }
     ]
   },
   {
     "featureType": "all",
     "elementType": "labels",
     "stylers": [
-      { "visibility": "off" }
+      {
+        "visibility": "off"
+      }
     ]
   }
 ]

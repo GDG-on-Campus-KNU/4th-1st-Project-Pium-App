@@ -70,5 +70,6 @@ dependencies {
     implementation ("com.kakao.sdk:v2-user:2.18.0")
     // 코루틴 + Retrofit 연동
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-
+    implementation ("com.google.android.libraries.places:places:3.3.0")
+    implementation ("com.github.bumptech.glide:glide:4.16.0")
 }
